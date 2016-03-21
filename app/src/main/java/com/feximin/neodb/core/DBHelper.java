@@ -6,9 +6,11 @@ import android.database.sqlite.SQLiteOpenHelper;
 
 import com.feximin.neodb.manager.TableManager;
 import com.feximin.neodb.model.FieldInfo;
+import com.feximin.neodb.model.Model;
 import com.feximin.neodb.model.TableInfo;
 import com.feximin.neodb.utils.SingletonUtil;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -20,16 +22,26 @@ public class DBHelper extends SQLiteOpenHelper {
     private SQLiteDatabase mDb;
     //无参的构造器是必需的，singletonUtil要用
     private DBHelper(){
-        this(SingletonUtil.getInstance(DBConfig.class));
+        this(DBConfig.getInstance());
     }
 
     private DBHelper(DBConfig config){
         super(config.getContext(), config.getDbName(), null, config.getDbVersion());
+        create(config);
     }
 
-    public void create(DBConfig config){
+    public static DBHelper getInstance(){
+        return SingletonUtil.getInstance(DBHelper.class);
+    }
+
+    private void create(DBConfig config){
         List<TableInfo> existList = TableManager.getInstance().queryAllTable();       //已经存在的表
-        List<TableInfo> latestList = config.getTableList();                           //需要的表
+
+        List<TableInfo> latestList = new ArrayList<>();
+        for(Class<? extends Model> clazz : config.getModelList()){
+            latestList.add(new TableInfo(clazz));
+        }
+
         //开始比较，已经存在的表查看是否需要更新，不存在的表则新建
         for(TableInfo table : latestList){
             TableInfo existTable = null;  //是否已经存在
@@ -56,9 +68,6 @@ public class DBHelper extends SQLiteOpenHelper {
         }
     }
 
-    public static DBHelper getInstance(){
-        return SingletonUtil.getInstance(DBHelper.class);
-    }
 
     public void execSQL(String sql){
         try {

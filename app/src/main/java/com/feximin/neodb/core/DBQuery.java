@@ -212,7 +212,6 @@ public class DBQuery<T extends Model> {
 
     public void insert(T t){
         insertWithKVList(t, false);
-
     }
 
 

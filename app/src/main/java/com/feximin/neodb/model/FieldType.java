@@ -2,6 +2,8 @@ package com.feximin.neodb.model;
 
 /**
  * Created by Neo on 16/1/9.
+ *
+ * 数据库中存储的字段前后都加了双下划线
  */
 public abstract class FieldType {
 

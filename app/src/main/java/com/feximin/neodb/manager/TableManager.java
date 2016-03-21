@@ -71,7 +71,7 @@ public class TableManager  {
 					while(matcher.find()){
 						String str = matcher.group();
 
-						columnNames.add(str.substring(2, str.length()-2));
+						columnNames.add(FieldType.cleanName(str));
 					}
 					int size = columnNames.size();
 					if(size > 0) {

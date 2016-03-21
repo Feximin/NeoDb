@@ -14,8 +14,6 @@ public class FieldInfo {
 	public static String P_K_NAME = "p_k_id";
 	public static String P_K_TYPE = "INTEGER PRIMARY KEY AUTOINCREMENT";
 
-	public static final String SUFFIX = "__";
-
 
 	public static final List<FieldInfo> sReserveFieldInfoList = new ArrayList<>();
 

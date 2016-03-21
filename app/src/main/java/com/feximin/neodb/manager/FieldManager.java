@@ -1,5 +1,6 @@
 package com.feximin.neodb.manager;
 
+import com.feximin.neodb.annotation.NonField;
 import com.feximin.neodb.exceptions.IllegalFieldName;
 import com.feximin.neodb.exceptions.IllegalTypeException;
 import com.feximin.neodb.model.FieldInfo;
@@ -30,7 +31,6 @@ public class FieldManager {
 		}else{
 			List<FieldInfo> list = new ArrayList<>();
 			Class cl = clazz;
-			String suffix = FieldInfo.SUFFIX;
 			do{
 				Field[] fields = cl.getDeclaredFields();
 				if(NeoUtil.isNotEmpty(fields)){
@@ -43,7 +43,7 @@ public class FieldManager {
 							if(name.equals(FieldInfo.M_U_NAME) || name.equals(FieldInfo.P_K_NAME)){
 								throw new IllegalFieldName();
 							}
-							if(!name.startsWith("$") && !name.endsWith(suffix)){		//以$开头的是Object中
+							if(!f.isAnnotationPresent(NonField.class) && !name.startsWith("$")){		//以$开头的是Object中
 								FieldInfo entity = new FieldInfo(name, f.getType());
 								list.add(entity);
 							}
