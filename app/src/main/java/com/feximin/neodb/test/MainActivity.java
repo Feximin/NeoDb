@@ -21,10 +21,12 @@ public class MainActivity extends AppCompatActivity {
 
         txt = (TextView) findViewById(R.id.txt);
         //初始化 所需的Model
-        DBConfig config = new DBConfig.Builder().context(this).name("test").version(1).build();
-
-        config.addModel(Students.class);
-        config.addModel(Teachers.class);
+        DBConfig config = DBConfig.obtain()
+                .context(this)
+                .name("test")
+                .version(1)
+                .addModel(Students.class)
+                .addModel(Teachers.class);
 
 //        List<Students> students = new ArrayList<>();
 //        List<Teachers> teachers = new ArrayList<>();

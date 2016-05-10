@@ -99,7 +99,7 @@ public class FieldManager {
 
 	public static void addFieldType(FieldType type){
 			sValidFieldType.add(type);
-		}
+	}
 
 	public static FieldType getFieldType(Class<?> clazz){
 		for(FieldType ty : sValidFieldType){

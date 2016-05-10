@@ -8,7 +8,6 @@ import com.feximin.neodb.manager.TableManager;
 import com.feximin.neodb.model.FieldInfo;
 import com.feximin.neodb.model.Model;
 import com.feximin.neodb.model.TableInfo;
-import com.feximin.neodb.utils.SingletonUtil;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -21,17 +20,23 @@ public class DBHelper extends SQLiteOpenHelper {
 
     private SQLiteDatabase mDb;
     //无参的构造器是必需的，singletonUtil要用
-    private DBHelper(){
-        this(DBConfig.getInstance());
-    }
 
     private DBHelper(DBConfig config){
         super(config.getContext(), config.getDbName(), null, config.getDbVersion());
         create(config);
     }
 
+    private static DBHelper INSTANCE;
+
     public static DBHelper getInstance(){
-        return SingletonUtil.getInstance(DBHelper.class);
+        if (INSTANCE == null){
+            synchronized (DBHelper.class){
+                if (INSTANCE == null){
+                    INSTANCE = new DBHelper(DBConfig.obtain());
+                }
+            }
+        }
+        return INSTANCE;
     }
 
     private void create(DBConfig config){
