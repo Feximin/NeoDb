@@ -6,6 +6,8 @@ import android.database.sqlite.SQLiteDatabase;
 
 import com.feximin.neodb.exceptions.CursorToModelException;
 import com.feximin.neodb.exceptions.InsertException;
+import com.feximin.neodb.exceptions.NoEmptyConstructorException;
+import com.feximin.neodb.exceptions.NotMultiUserModeClassException;
 import com.feximin.neodb.manager.FieldManager;
 import com.feximin.neodb.manager.TableManager;
 import com.feximin.neodb.model.FieldInfo;
@@ -110,8 +112,10 @@ public class DBQuery<T extends Model> {
         return this;
     }
     public DBQuery my(){
-        this.args.add(getMyUid());
-        this.whereClause.append("AND ").append(FieldInfo.M_U_NAME).append("=? ");
+        FieldInfo multiUser = FieldManager.getMultiUserIdentifyFieldInfo(clazz);
+        if (multiUser == null) throw new NotMultiUserModeClassException(clazz);
+        this.args.add(DBConfig.obtain().getUserIdFetcher().fetchUserId());
+        this.whereClause.append("AND ").append(multiUser.name).append("=? ");
         return this;
     }
     public String[] getArgs(){
@@ -125,19 +129,13 @@ public class DBQuery<T extends Model> {
         StringBuilder state = new StringBuilder("SELECT COUNT(*) FROM ").append(tableName).append(" ");
         String[] arg = getArgs();
         if(arg != null) state.append(whereClause);
-        helper.execSelect(state.toString(), arg);
         Cursor cursor= helper.execSelect(state.toString(), arg);
         int count = 0;
         if(cursor != null && cursor.moveToFirst()){
             count= cursor.getInt(0);
             cursor.close();
         }
-        helper.close();
         return count;
-    }
-
-    public String getMyUid(){
-        return null;
     }
 
     public List<T> endSelect(String ...columns){
@@ -160,7 +158,7 @@ public class DBQuery<T extends Model> {
         }
         String sql = startState.toString();
         DBHelper helper = DBHelper.getInstance();
-        List<T> result = cursorToModelList(helper.execSelect(sql, arg), clazz);
+        List<T> result = cursorToModelList(helper.execSelect(sql, arg));
         helper.close();
         return result;
     }
@@ -249,8 +247,9 @@ public class DBQuery<T extends Model> {
 
 
     private void insertWithKVList(T t, boolean my){
-        List<KeyValue> kvList = KeyValue.getKVList(t, clazz);
-        if(my) kvList.add(new KeyValue(FieldInfo.M_U_NAME, getMyUid()));
+        List<KeyValue> kvList = KeyValue.getKVList(t);
+        FieldInfo multiUser = FieldManager.getMultiUserIdentifyFieldInfo(clazz);
+        if(my && multiUser != null) kvList.add(new KeyValue(multiUser.name, DBConfig.obtain().getUserIdFetcher().fetchUserId()));
         StringBuilder state = new StringBuilder("INSERT INTO ").append(tableName).append(" (");
         for(KeyValue kv : kvList){
             state.append(FieldType.decorName(kv.key)).append(",");
@@ -280,17 +279,22 @@ public class DBQuery<T extends Model> {
         public FieldInfo fieldInfo;
     }
 
-    public static <T extends Model> List<T> cursorToModelList(Cursor cursor, Class<T> clazz){
+    public  <T extends Model> List<T> cursorToModelList(Cursor cursor){
         if(cursor != null && cursor.moveToFirst()){
             List<FieldInfo> fields = FieldManager.getFieldList(clazz);
             try {
-                Constructor constructor = clazz.getConstructor();
+                Constructor constructor;
+                try{
+                    constructor = clazz.getConstructor();
+                }catch (NoSuchMethodException e){
+                    throw new NoEmptyConstructorException(clazz.getName());
+                }
                 constructor.setAccessible(true);
                 String[] columns = cursor.getColumnNames();
 
                 int length;
                 if(columns != null && (length = columns.length) > 0){
-                    Map<String, ColumnInfo> typeClazzMap = new HashMap<>(length);
+                    Map<String, ColumnInfo> typeColumnMap = new HashMap<>(length);
 
                     for(String name : columns){
                         ColumnInfo info = new ColumnInfo();
@@ -299,7 +303,7 @@ public class DBQuery<T extends Model> {
                         for(FieldInfo field : fields){
                             if(name.equals(field.name)){
                                 info.fieldInfo = field;
-                                typeClazzMap.put(name, info);
+                                typeColumnMap.put(name, info);
                                 break;
                             }
                         }
@@ -307,32 +311,33 @@ public class DBQuery<T extends Model> {
                     List<T> list = new ArrayList<>(length);
                     do{
                         Object t = constructor.newInstance();
-                        for(String co : typeClazzMap.keySet()){
-                            if(FieldInfo.isReserveFieldName(co)) continue;
-                            Field field = clazz.getDeclaredField(co);
-                            field.setAccessible(true);
-                            ColumnInfo info = typeClazzMap.get(co);
-                            FieldType fieldType = info.fieldInfo.fieldType;
-                            Class<?> typeClazz = fieldType.clazz;
-                            int index = info.index;
-                            if(typeClazz == String.class){
-                                field.set(t, cursor.getString(info.index));
-                            }else if(typeClazz == Integer.class || typeClazz == int.class){
-                                field.setInt(t, cursor.getInt(index));
-                            }else if(typeClazz == Float.class || typeClazz == float.class){
-                                field.setFloat(t, cursor.getFloat(index));
-                            }else if(typeClazz == Double.class || typeClazz == double.class){
-                                field.setDouble(t, cursor.getDouble(index));
-                            }else if(typeClazz == Long.class || typeClazz == long.class){
-                                field.setLong(t, cursor.getLong(index));
-                            }else if(typeClazz == Short.class || typeClazz == short.class){
-                                field.setShort(t, cursor.getShort(index));
-                            }else if(typeClazz == Byte.class || typeClazz == byte.class){
-                                field.setByte(t, (byte) cursor.getInt(index));
-                            }else if(typeClazz == Boolean.class || typeClazz == boolean.class){
-                                field.setBoolean(t, cursor.getInt(index) == 1);
-                            }else{
-                                field.set(t, fieldType.fromDb(cursor.getString(info.index)));
+                        for(String fieldName : typeColumnMap.keySet()){
+                            Field field = FieldInfo.getField(clazz, fieldName);
+                            if (field != null){
+                                field.setAccessible(true);
+                                ColumnInfo info = typeColumnMap.get(fieldName);
+                                FieldType fieldType = info.fieldInfo.fieldType;
+                                Class<?> typeClazz = fieldType.clazz;
+                                int index = info.index;
+                                if(typeClazz == String.class){
+                                    field.set(t, cursor.getString(info.index));
+                                }else if(typeClazz == Integer.class || typeClazz == int.class){
+                                    field.setInt(t, cursor.getInt(index));
+                                }else if(typeClazz == Float.class || typeClazz == float.class){
+                                    field.setFloat(t, cursor.getFloat(index));
+                                }else if(typeClazz == Double.class || typeClazz == double.class){
+                                    field.setDouble(t, cursor.getDouble(index));
+                                }else if(typeClazz == Long.class || typeClazz == long.class){
+                                    field.setLong(t, cursor.getLong(index));
+                                }else if(typeClazz == Short.class || typeClazz == short.class){
+                                    field.setShort(t, cursor.getShort(index));
+                                }else if(typeClazz == Byte.class || typeClazz == byte.class){
+                                    field.setByte(t, (byte) cursor.getInt(index));
+                                }else if(typeClazz == Boolean.class || typeClazz == boolean.class){
+                                    field.setBoolean(t, cursor.getInt(index) == 1);
+                                }else{
+                                    field.set(t, fieldType.fromDb(cursor.getString(info.index)));
+                                }
                             }
                         }
                         list.add((T) t);

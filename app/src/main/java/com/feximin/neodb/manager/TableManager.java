@@ -25,8 +25,7 @@ public class TableManager  {
 		return SingletonUtil.getInstance(TableManager.class);
 	}
 	
-	public void createTable(TableInfo table){
-		TableInfo en = modelToTable(table.clazz);
+	public void createTable(TableInfo en){
         String name = en.name;
 		StringBuffer state = new StringBuffer("CREATE TABLE IF NOT EXISTS ").append(name).append(" (");
 		for(FieldInfo entry : en.fieldList){

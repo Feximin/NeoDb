@@ -1,8 +1,13 @@
 package com.feximin.neodb.manager;
 
-import com.feximin.neodb.annotation.NonField;
-import com.feximin.neodb.exceptions.IllegalFieldName;
+import com.feximin.neodb.annotation.Ignore;
+import com.feximin.neodb.annotation.MultiUser;
+import com.feximin.neodb.annotation.Primary;
 import com.feximin.neodb.exceptions.IllegalTypeException;
+import com.feximin.neodb.exceptions.MultiFieldException;
+import com.feximin.neodb.exceptions.MultiMultiUserException;
+import com.feximin.neodb.exceptions.MultiPrimaryKeyException;
+import com.feximin.neodb.exceptions.PrimaryKeyTypeException;
 import com.feximin.neodb.model.FieldInfo;
 import com.feximin.neodb.model.FieldType;
 import com.feximin.neodb.model.FieldTypeAdapter;
@@ -19,8 +24,34 @@ import java.util.Map;
 public class FieldManager {
 
 	public static final Map<Class<? extends Model>, List<FieldInfo>> sModelFieldMaps = new HashMap<>();
+	public static final Map<Class<? extends Model>, FieldInfo> sMultiUserIdentifyFieldInfoMaps = new HashMap<>();
+
+
+    public static FieldInfo getMultiUserIdentifyFieldInfo(Class<? extends Model> clazz){
+        if (sMultiUserIdentifyFieldInfoMaps.containsKey(clazz)){
+            return sMultiUserIdentifyFieldInfoMaps.get(clazz);
+        }else {
+            boolean isMultiUserMode = false;
+            FieldInfo fieldInfo = null;
+            Class cl = clazz;
+            do {
+                if (cl.isAnnotationPresent(MultiUser.class)) {
+                    if (isMultiUserMode) throw new MultiMultiUserException();
+                    MultiUser multiUser = (MultiUser) cl.getAnnotation(MultiUser.class);
+                    fieldInfo = new FieldInfo(multiUser.field(), FieldInfo.MULTI_USER_FIELD_TYPE);
+                    isMultiUserMode = true;
+                }
+            } while ((cl = cl.getSuperclass()) != Model.class);
+            if (fieldInfo != null) sMultiUserIdentifyFieldInfoMaps.put(clazz, fieldInfo);
+            return fieldInfo;
+        }
+    }
 
 	/**
+	 * 如果有MultiUser注解，则是多用户系统，需要多加一个字段来表示user_id
+	 * 如果字段上有Ignore,表示不进行存储
+	 * 如果字段上有Primary,表示主键
+	 *
 	 * 需要存储到数据库的字段都有哪些
 	 * @param clazz
 	 * @return
@@ -31,7 +62,9 @@ public class FieldManager {
 		}else{
 			List<FieldInfo> list = new ArrayList<>();
 			Class cl = clazz;
+			boolean hasPrimary = false;
 			do{
+                addFieldInfo(list, getMultiUserIdentifyFieldInfo(clazz));
 				Field[] fields = cl.getDeclaredFields();
 				if(NeoUtil.isNotEmpty(fields)){
 					for(Field f : fields){
@@ -40,22 +73,37 @@ public class FieldManager {
 						boolean isAvailableModifier = cl == clazz || Modifier.isPublic(modifier) || Modifier.isProtected(modifier);
 						if(isAvailableModifier){
 							String name = f.getName();
-							if(name.equals(FieldInfo.M_U_NAME) || name.equals(FieldInfo.P_K_NAME)){
-								throw new IllegalFieldName();
-							}
-							if(!f.isAnnotationPresent(NonField.class) && !name.startsWith("$")){		//以$开头的是Object中
-								FieldInfo entity = new FieldInfo(name, f.getType());
-								list.add(entity);
+							if(!f.isAnnotationPresent(Ignore.class) && !name.startsWith("$")){		//以$开头的是Object中
+								if (f.isAnnotationPresent(Primary.class)){
+									if (hasPrimary) throw  new MultiPrimaryKeyException(name);
+                                    if (f.getType() != int.class || f.getType() != Integer.class){
+                                        throw new PrimaryKeyTypeException(name);
+                                    }
+                                    addFieldInfo(list, new FieldInfo(name, FieldInfo.PRIMARY_FIELD_TYPE));
+									hasPrimary = true;
+								}else{
+                                    addFieldInfo(list, new FieldInfo(name, f.getType()));
+                                }
 							}
 						}
 					}
 				}
 			}while((cl = cl.getSuperclass()) != Model.class);
-			list.addAll(FieldInfo.sReserveFieldInfoList);
+            if (!hasPrimary){
+                addFieldInfo(list, FieldInfo.PRIMARY_FIELD_INFO);
+            }
 			sModelFieldMaps.put(clazz, list);
 			return list;
 		}
 	}
+
+    public static void addFieldInfo(List<FieldInfo> list, FieldInfo info){
+        if (info == null) return;
+        if (list.contains(info)){
+            throw new MultiFieldException(info.name);
+        }
+        list.add(info);
+    }
 
 	public static final String INTEGER = "INTEGER";
 	public static final String VARCHAR_10 = "VARCHAR(10)";

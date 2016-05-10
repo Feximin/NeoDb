@@ -15,6 +15,7 @@ public class DBConfig {
     private Context context;
     private String dbName;
     private int dbVersion;
+    private UserIdFetcher userIdFetcher;
     private Set<Class<? extends Model>> validModelList = new HashSet<>();
 
     private DBConfig(){}
@@ -43,6 +44,12 @@ public class DBConfig {
         return this;
     }
 
+    public DBConfig userIdFetcher(UserIdFetcher fetcher){
+        this.userIdFetcher = fetcher;
+        return this;
+    }
+
+
     public Set<Class<? extends Model>> getModelList(){
         return this.validModelList;
     }
@@ -57,6 +64,10 @@ public class DBConfig {
 
     public int getDbVersion() {
         return dbVersion;
+    }
+
+    public UserIdFetcher getUserIdFetcher(){
+        return this.userIdFetcher;
     }
 
 }

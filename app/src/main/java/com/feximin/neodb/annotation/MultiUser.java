@@ -6,9 +6,10 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Created by Neo on 16/3/19.
+ * Created by Neo on 16/5/10.
  */
-@Target(ElementType.FIELD)
+@Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
-public @interface NonField {
+public @interface MultiUser {
+    String field() default "cur_login_user_id";
 }

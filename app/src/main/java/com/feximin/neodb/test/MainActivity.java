@@ -20,8 +20,8 @@ public class MainActivity extends AppCompatActivity {
         setSupportActionBar(toolbar);
 
         txt = (TextView) findViewById(R.id.txt);
-        //初始化 所需的Model
-        DBConfig config = DBConfig.obtain()
+        //初始化 所需的Model，去Application中初始化，因为进程可能被kill掉
+        DBConfig.obtain()
                 .context(this)
                 .name("test")
                 .version(1)
