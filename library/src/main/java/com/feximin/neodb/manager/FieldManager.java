@@ -1,13 +1,13 @@
 package com.feximin.neodb.manager;
 
-import com.feximin.neodb.annotation.Ignore;
-import com.feximin.neodb.annotation.MultiUser;
 import com.feximin.neodb.annotation.Primary;
 import com.feximin.neodb.exceptions.IllegalTypeException;
 import com.feximin.neodb.exceptions.MultiFieldException;
-import com.feximin.neodb.exceptions.MultiMultiUserException;
 import com.feximin.neodb.exceptions.MultiPrimaryKeyException;
 import com.feximin.neodb.exceptions.NotMultiUserModeClassException;
+import com.feximin.neodb.annotation.Ignore;
+import com.feximin.neodb.annotation.MultiUser;
+import com.feximin.neodb.exceptions.MultiMultiUserException;
 import com.feximin.neodb.exceptions.PrimaryKeyTypeException;
 import com.feximin.neodb.model.FieldInfo;
 import com.feximin.neodb.model.FieldType;
@@ -28,7 +28,7 @@ public class FieldManager {
 	public static final Map<Class<? extends Model>, FieldInfo> sMultiUserIdentifyFieldInfoMaps = new HashMap<>();
 
 
-    public static FieldInfo getMultiUserIdentifyFieldInfo(Class<? extends Model> clazz){
+    public static FieldInfo getMultiUserIdentifyFieldInfo(Class<? extends Model> clazz, boolean...throwIfNotMultiUserMode){
         if (sMultiUserIdentifyFieldInfoMaps.containsKey(clazz)){
             return sMultiUserIdentifyFieldInfoMaps.get(clazz);
         }else {
@@ -42,9 +42,9 @@ public class FieldManager {
                     fieldInfo = new FieldInfo(multiUser.field(), FieldInfo.MULTI_USER_FIELD_TYPE);
                     isMultiUserMode = true;
                 }
-            } while ((cl = cl.getSuperclass()) != Model.class);
-            if (fieldInfo == null) throw new NotMultiUserModeClassException(clazz);
-            sMultiUserIdentifyFieldInfoMaps.put(clazz, fieldInfo);
+            } while ((cl = cl.getSuperclass()) != Object.class);
+            if (fieldInfo == null && throwIfNotMultiUserMode.length > 0 && throwIfNotMultiUserMode[0]) throw new NotMultiUserModeClassException(clazz);
+            if (fieldInfo != null) sMultiUserIdentifyFieldInfoMaps.put(clazz, fieldInfo);
             return fieldInfo;
         }
     }
@@ -65,8 +65,8 @@ public class FieldManager {
 			List<FieldInfo> list = new ArrayList<>();
 			Class cl = clazz;
 			boolean hasPrimary = false;
-			do{
-                addFieldInfo(list, getMultiUserIdentifyFieldInfo(clazz));
+            addFieldInfo(list, getMultiUserIdentifyFieldInfo(clazz));
+            do{
 				Field[] fields = cl.getDeclaredFields();
 				if(NeoUtil.isNotEmpty(fields)){
 					for(Field f : fields){
@@ -90,7 +90,7 @@ public class FieldManager {
 						}
 					}
 				}
-			}while((cl = cl.getSuperclass()) != Model.class);
+			}while((cl = cl.getSuperclass()) != Object.class);
             if (!hasPrimary){
                 addFieldInfo(list, FieldInfo.PRIMARY_FIELD_INFO);
             }
@@ -116,7 +116,7 @@ public class FieldManager {
             }catch (NoSuchFieldException e){
                 e.printStackTrace();
             }
-        }while((cl = cl.getSuperclass()) != Model.class);
+        }while((cl = cl.getSuperclass()) != Object.class);
         return field;
     }
 

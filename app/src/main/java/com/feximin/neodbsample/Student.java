@@ -1,4 +1,4 @@
-package com.feximin.neodb.test;
+package com.feximin.neodbsample;
 
 import com.feximin.neodb.annotation.MultiUser;
 import com.feximin.neodb.model.Model;
@@ -7,14 +7,14 @@ import com.feximin.neodb.model.Model;
  * Created by Neo on 16/1/6.
  */
 @MultiUser
-public class Students implements Model {
+public class Student implements Model {
     private int age;
     private String name;
     private String title;
     private String teacher;
-    public Students(){}
+    public Student(){}
 
-    public Students(int age, String name, String title, String teacher) {
+    public Student(int age, String name, String title, String teacher) {
         this.age = age;
         this.name = name;
         this.title = title;

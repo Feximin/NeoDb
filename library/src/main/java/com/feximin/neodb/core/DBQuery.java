@@ -7,7 +7,6 @@ import android.database.sqlite.SQLiteDatabase;
 import com.feximin.neodb.exceptions.CursorToModelException;
 import com.feximin.neodb.exceptions.InsertException;
 import com.feximin.neodb.exceptions.NoEmptyConstructorException;
-import com.feximin.neodb.exceptions.NotMultiUserModeClassException;
 import com.feximin.neodb.manager.FieldManager;
 import com.feximin.neodb.manager.TableManager;
 import com.feximin.neodb.model.FieldInfo;
@@ -112,8 +111,7 @@ public class DBQuery<T extends Model> {
         return this;
     }
     public DBQuery my(){
-        FieldInfo multiUser = FieldManager.getMultiUserIdentifyFieldInfo(clazz);
-        if (multiUser == null) throw new NotMultiUserModeClassException(clazz);
+        FieldInfo multiUser = FieldManager.getMultiUserIdentifyFieldInfo(clazz, true);
         this.args.add(DBConfig.obtain().getUserIdFetcher().fetchUserId());
         this.whereClause.append("AND ").append(multiUser.name).append("=? ");
         return this;
@@ -128,12 +126,14 @@ public class DBQuery<T extends Model> {
         StringBuilder state = new StringBuilder("SELECT COUNT(*) FROM ").append(tableName).append(" ");
         String[] arg = getArgs();
         if(arg != null) state.append(whereClause);
-        Cursor cursor= DBHelper.getInstance().rawQuery(state.toString(), arg);
+        DBHelper helper = DBHelper.getInstance();
+        Cursor cursor= helper.rawQuery(state.toString(), arg);
         int count = 0;
         if(cursor != null && cursor.moveToFirst()){
             count = cursor.getInt(0);
             cursor.close();
         }
+        helper.close();
         return count;
     }
 
@@ -157,7 +157,9 @@ public class DBQuery<T extends Model> {
             startState.append(" WHERE ").append(whereClause);
         }
         String sql = startState.toString();
-        List<T> result = cursorToModelList(DBHelper.getInstance().rawQuery(sql, arg));
+        DBHelper helper = DBHelper.getInstance();
+        List<T> result = cursorToModelList(helper.rawQuery(sql, arg));
+        helper.close();
         return result;
     }
 
@@ -256,7 +258,7 @@ public class DBQuery<T extends Model> {
     private void insertWithKVList(T t, boolean my){
         List<KeyValue> kvList = KeyValue.getKVList(t);
         if(my){
-            FieldInfo multiUser = FieldManager.getMultiUserIdentifyFieldInfo(clazz);
+            FieldInfo multiUser = FieldManager.getMultiUserIdentifyFieldInfo(clazz, true);
             kvList.add(new KeyValue(multiUser.name, DBConfig.obtain().getUserIdFetcher().fetchUserId()));
         }
         StringBuilder state = new StringBuilder("INSERT INTO ").append(tableName).append(" (");

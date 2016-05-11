@@ -23,7 +23,6 @@ public class DBHelper extends SQLiteOpenHelper {
 
     private DBHelper(DBConfig config){
         super(config.getContext(), config.getDbName(), null, config.getDbVersion());
-        create(config);
     }
 
     private static DBHelper INSTANCE;
@@ -33,17 +32,18 @@ public class DBHelper extends SQLiteOpenHelper {
             synchronized (DBHelper.class){
                 if (INSTANCE == null){
                     INSTANCE = new DBHelper(DBConfig.obtain());
+                    init();
                 }
             }
         }
         return INSTANCE;
     }
 
-    private void create(DBConfig config){
+    private static void init( ){
         List<TableInfo> existList = TableManager.getInstance().queryAllTable();       //已经存在的表
 
         List<TableInfo> latestList = new ArrayList<>();
-        for(Class<? extends Model> clazz : config.getModelList()){
+        for(Class<? extends Model> clazz : DBConfig.obtain().getModelList()){
             latestList.add(new TableInfo(clazz));
         }
 
@@ -83,11 +83,7 @@ public class DBHelper extends SQLiteOpenHelper {
     }
 
     public Cursor rawQuery(String sql, String[] args){
-        try{
-            return getDb().rawQuery(sql, args);
-        }finally {
-            close();
-        }
+        return getDb().rawQuery(sql, args);
     }
 
     public Cursor rawQuery(String sql){

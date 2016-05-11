@@ -3,11 +3,11 @@ package com.feximin.neodb.manager;
 import android.database.Cursor;
 
 import com.feximin.neodb.core.DBHelper;
+import com.feximin.neodb.model.TableInfo;
 import com.feximin.neodb.exceptions.CreateTableFailedException;
 import com.feximin.neodb.model.FieldInfo;
 import com.feximin.neodb.model.FieldType;
 import com.feximin.neodb.model.Model;
-import com.feximin.neodb.model.TableInfo;
 import com.feximin.neodb.utils.SingletonUtil;
 
 import java.util.ArrayList;
@@ -57,38 +57,40 @@ public class TableManager  {
 	private String QUERY_ALL_TABLE = "SELECT name, sql FROM sqlite_master WHERE type='table'";
 	//获取所有的表，以及每个表中所有的字段，只需要知道字段名称，无需知道其他信息，type,typeClazz,
 	public List<TableInfo> queryAllTable(){
-		DBHelper helper = DBHelper.getInstance();
-		Cursor cursor = helper.execSelect(QUERY_ALL_TABLE);
-		if(cursor != null && cursor.moveToFirst()){
-			int index = cursor.getColumnIndex("name");
-			int indexSql = cursor.getColumnIndex("sql");
-			if(index > -1 && indexSql > -1){
-				do{
-					String sqlState = cursor.getString(indexSql);
-					Matcher matcher = pattern.matcher(sqlState);
-					List<String> columnNames = new ArrayList<>();
-					while(matcher.find()){
-						String str = matcher.group();
+        DBHelper helper = DBHelper.getInstance();
+		Cursor cursor = helper.rawQuery(QUERY_ALL_TABLE);
+		if (cursor != null){
+            if (cursor.moveToFirst()){
+                int index = cursor.getColumnIndex("name");
+                int indexSql = cursor.getColumnIndex("sql");
+                if(index > -1 && indexSql > -1){
+                    do{
+                        String sqlState = cursor.getString(indexSql);
+                        Matcher matcher = pattern.matcher(sqlState);
+                        List<String> columnNames = new ArrayList<>();
+                        while(matcher.find()){
+                            String str = matcher.group();
 
-						columnNames.add(FieldType.cleanName(str));
-					}
-					int size = columnNames.size();
-					if(size > 0) {
-						List<FieldInfo> fields = new ArrayList<>(size);
-						for (String cn : columnNames) {
-							fields.add(new FieldInfo(cn));
-						}
-						TableInfo table = new TableInfo();
-						String name = cursor.getString(index);
-						table.name = name;
-						table.fieldList = fields;
-						mTableList.add(table);
-					}
-				}while(cursor.moveToNext());
-			}
-			cursor.close();
-		}
-		helper.close();
+                            columnNames.add(FieldType.cleanName(str));
+                        }
+                        int size = columnNames.size();
+                        if(size > 0) {
+                            List<FieldInfo> fields = new ArrayList<>(size);
+                            for (String cn : columnNames) {
+                                fields.add(new FieldInfo(cn));
+                            }
+                            TableInfo table = new TableInfo();
+                            String name = cursor.getString(index);
+                            table.name = name;
+                            table.fieldList = fields;
+                            mTableList.add(table);
+                        }
+                    }while(cursor.moveToNext());
+                }
+            }
+            cursor.close();
+        }
+        helper.close();
 		return mTableList;
 	}
 	
