@@ -7,6 +7,7 @@ import java.lang.annotation.Target;
 
 /**
  * Created by Neo on 16/3/19.
+ * 该字段不做为数据库中的字段
  */
 @Target(ElementType.FIELD)
 @Retention(RetentionPolicy.RUNTIME)

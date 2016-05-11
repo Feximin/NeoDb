@@ -125,14 +125,13 @@ public class DBQuery<T extends Model> {
     }
 
     public int count(){
-        DBHelper helper = DBHelper.getInstance();
         StringBuilder state = new StringBuilder("SELECT COUNT(*) FROM ").append(tableName).append(" ");
         String[] arg = getArgs();
         if(arg != null) state.append(whereClause);
-        Cursor cursor= helper.execSelect(state.toString(), arg);
+        Cursor cursor= DBHelper.getInstance().rawQuery(state.toString(), arg);
         int count = 0;
         if(cursor != null && cursor.moveToFirst()){
-            count= cursor.getInt(0);
+            count = cursor.getInt(0);
             cursor.close();
         }
         return count;
@@ -151,15 +150,14 @@ public class DBQuery<T extends Model> {
             startState.deleteCharAt(startState.length() - 1);
         }
 
-        String[] arg = getArgs();
         startState.append(" FROM ").append(tableName);
+
+        String[] arg = getArgs();
         if(arg != null){
             startState.append(" WHERE ").append(whereClause);
         }
         String sql = startState.toString();
-        DBHelper helper = DBHelper.getInstance();
-        List<T> result = cursorToModelList(helper.execSelect(sql, arg));
-        helper.close();
+        List<T> result = cursorToModelList(DBHelper.getInstance().execSelect(sql, arg));
         return result;
     }
 

@@ -82,6 +82,14 @@ public class DBHelper extends SQLiteOpenHelper {
         }
     }
 
+    public Cursor rawQuery(String sql, String[] args){
+        try{
+            return getDb().rawQuery(sql, args);
+        }finally {
+            close();
+        }
+    }
+
     public Cursor execSelect(String sql){
         return execSelect(sql, null);
     }

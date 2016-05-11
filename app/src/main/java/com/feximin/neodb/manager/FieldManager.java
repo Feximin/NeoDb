@@ -97,6 +97,27 @@ public class FieldManager {
 		}
 	}
 
+    /**
+     public Field getDeclaredField(String name) // 获得该类自身声明的所有变量，不包括其父类的变量
+     public Field getField(String name) // 获得该类自所有的public成员变量，包括其父类变量
+     */
+    public static Field getField(Class<? extends Model> clazz, String fieldName){
+        Field field = null;
+        Class<?> cl = clazz;
+        do{
+            try {
+                field = clazz.getDeclaredField(fieldName);
+                int modifier = field.getModifiers();
+                //如果是父类的话只有public或者protected的变量有效
+                boolean isAvailableModifier = cl == clazz || Modifier.isPublic(modifier) || Modifier.isProtected(modifier);
+                if (isAvailableModifier) break;
+            }catch (NoSuchFieldException e){
+                e.printStackTrace();
+            }
+        }while((cl = cl.getSuperclass()) != Model.class);
+        return field;
+    }
+
     public static void addFieldInfo(List<FieldInfo> list, FieldInfo info){
         if (info == null) return;
         if (list.contains(info)){

@@ -7,6 +7,7 @@ import java.lang.annotation.Target;
 
 /**
  * Created by Neo on 16/5/10.
+ * 表中的数据需要多用户系统的时候，每个表中多一个字段，表示当前用户的id
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
