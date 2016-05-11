@@ -2,42 +2,16 @@ package com.feximin.neodb.model;
 
 import com.feximin.neodb.manager.FieldManager;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
-import java.util.ArrayList;
-import java.util.List;
-
 public class FieldInfo {
 	public String name;
 	public FieldType fieldType;
-
-//	public static String M_U_NAME = "cur_login_user_id";
-//	public static String M_U_TYPE = "VARCHAR(10)";
-//	public static String P_K_NAME = "p_k_id";
-//	public static String P_K_TYPE = "INTEGER PRIMARY KEY AUTOINCREMENT";
 
 	public static FieldType MULTI_USER_FIELD_TYPE = new FieldTypeAdapter(String.class, "VARCHAR(10)", "''");
 	public static FieldType PRIMARY_FIELD_TYPE = new FieldTypeAdapter(int.class, "INTEGER PRIMARY KEY AUTOINCREMENT", null);
 	public static FieldInfo PRIMARY_FIELD_INFO = new FieldInfo("p_k_id", PRIMARY_FIELD_TYPE);
 
-
-
-	public static final List<FieldInfo> sReserveFieldInfoList = new ArrayList<>();
-
-//	static {
-//		sReserveFieldInfoList.add(new FieldInfo(M_U_NAME, new FieldTypeAdapter(String.class, M_U_TYPE, "''")));
-//		sReserveFieldInfoList.add(new FieldInfo(P_K_NAME, new FieldTypeAdapter(int.class, P_K_TYPE, null)));
-//	}
 	public FieldInfo(){}
 
-//	public static boolean isReserveFieldName(String name){
-//		for(FieldInfo info : sReserveFieldInfoList){
-//			if(name.equals(info.name)){
-//				return true;
-//			}
-//		}
-//		return false;
-//	}
 
 	public FieldInfo(String name, Class<?> typeClazz){
 		this(name, FieldManager.getFieldType(typeClazz));

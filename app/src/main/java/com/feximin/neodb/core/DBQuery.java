@@ -157,7 +157,7 @@ public class DBQuery<T extends Model> {
             startState.append(" WHERE ").append(whereClause);
         }
         String sql = startState.toString();
-        List<T> result = cursorToModelList(DBHelper.getInstance().execSelect(sql, arg));
+        List<T> result = cursorToModelList(DBHelper.getInstance().rawQuery(sql, arg));
         return result;
     }
 
@@ -171,11 +171,20 @@ public class DBQuery<T extends Model> {
         return affect;
     }
 
+    public int endUpdate(T t){
+        List<KeyValue> kvList = KeyValue.getKVList(t);
+        ContentValues values = new ContentValues(kvList.size());
+        for (KeyValue kv : kvList){
+            values.put(kv.key, kv.value);
+        }
+        return endUpdate(values);
+    }
+
     public ContentValues decorContentValues(ContentValues values){
         ContentValues newValues = new ContentValues();
         for(Map.Entry<String, Object> item : values.valueSet()){
             String key = item.getKey();
-            Object va = values.get(key);
+            Object va = item.getValue();
             key = FieldType.decorName(key);
             if(va instanceof Integer){
                 newValues.put(key, (Integer) va);
@@ -246,8 +255,10 @@ public class DBQuery<T extends Model> {
 
     private void insertWithKVList(T t, boolean my){
         List<KeyValue> kvList = KeyValue.getKVList(t);
-        FieldInfo multiUser = FieldManager.getMultiUserIdentifyFieldInfo(clazz);
-        if(my && multiUser != null) kvList.add(new KeyValue(multiUser.name, DBConfig.obtain().getUserIdFetcher().fetchUserId()));
+        if(my){
+            FieldInfo multiUser = FieldManager.getMultiUserIdentifyFieldInfo(clazz);
+            kvList.add(new KeyValue(multiUser.name, DBConfig.obtain().getUserIdFetcher().fetchUserId()));
+        }
         StringBuilder state = new StringBuilder("INSERT INTO ").append(tableName).append(" (");
         for(KeyValue kv : kvList){
             state.append(FieldType.decorName(kv.key)).append(",");
@@ -260,14 +271,11 @@ public class DBQuery<T extends Model> {
         state.deleteCharAt(state.length() - 1);
         state.append(")");
 
-        DBHelper helper = DBHelper.getInstance();
         try {
-            helper.getDb().execSQL(state.toString());
+            DBHelper.getInstance().execSQL(state.toString());
         } catch (Exception e) {
             e.printStackTrace();
             throw new InsertException();
-        }finally {
-            helper.close();
         }
     }
 
@@ -277,7 +285,7 @@ public class DBQuery<T extends Model> {
         public FieldInfo fieldInfo;
     }
 
-    public  <T extends Model> List<T> cursorToModelList(Cursor cursor){
+    public  List<T> cursorToModelList(Cursor cursor){
         if(cursor != null && cursor.moveToFirst()){
             List<FieldInfo> fields = FieldManager.getFieldList(clazz);
             try {
@@ -310,7 +318,7 @@ public class DBQuery<T extends Model> {
                     do{
                         Object t = constructor.newInstance();
                         for(String fieldName : typeColumnMap.keySet()){
-                            Field field = FieldInfo.getField(clazz, fieldName);
+                            Field field = FieldManager.getField(clazz, fieldName);
                             if (field != null){
                                 field.setAccessible(true);
                                 ColumnInfo info = typeColumnMap.get(fieldName);

@@ -90,17 +90,10 @@ public class DBHelper extends SQLiteOpenHelper {
         }
     }
 
-    public Cursor execSelect(String sql){
-        return execSelect(sql, null);
+    public Cursor rawQuery(String sql){
+        return rawQuery(sql, null);
     }
 
-    public Cursor execSelect(String sql, String[] args){
-        try {
-            return getDb().rawQuery(sql, args);
-        }finally {
-            close();
-        }
-    }
     public int execDelete(String tableName, String whereClause, String[] args){
         int affect = 0;
         try {

@@ -30,7 +30,7 @@ public class KeyValue {
                 String name = info.name;
 
 
-                Field f = FieldInfo.getField(clazz, name);
+                Field f = FieldManager.getField(clazz, name);
 
                 if (f != null){
                     f.setAccessible(true);

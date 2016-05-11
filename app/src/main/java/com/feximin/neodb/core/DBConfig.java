@@ -10,6 +10,7 @@ import java.util.Set;
 
 /**
  * Created by Neo on 16/1/6.
+ * 初始化 所需的Model，去Application中初始化，因为进程可能被kill掉
  */
 public class DBConfig {
     private Context context;

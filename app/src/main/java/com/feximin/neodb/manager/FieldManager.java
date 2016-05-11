@@ -7,6 +7,7 @@ import com.feximin.neodb.exceptions.IllegalTypeException;
 import com.feximin.neodb.exceptions.MultiFieldException;
 import com.feximin.neodb.exceptions.MultiMultiUserException;
 import com.feximin.neodb.exceptions.MultiPrimaryKeyException;
+import com.feximin.neodb.exceptions.NotMultiUserModeClassException;
 import com.feximin.neodb.exceptions.PrimaryKeyTypeException;
 import com.feximin.neodb.model.FieldInfo;
 import com.feximin.neodb.model.FieldType;
@@ -42,7 +43,8 @@ public class FieldManager {
                     isMultiUserMode = true;
                 }
             } while ((cl = cl.getSuperclass()) != Model.class);
-            if (fieldInfo != null) sMultiUserIdentifyFieldInfoMaps.put(clazz, fieldInfo);
+            if (fieldInfo == null) throw new NotMultiUserModeClassException(clazz);
+            sMultiUserIdentifyFieldInfoMaps.put(clazz, fieldInfo);
             return fieldInfo;
         }
     }

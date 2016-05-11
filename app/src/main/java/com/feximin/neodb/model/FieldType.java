@@ -11,7 +11,6 @@ public abstract class FieldType {
     public final Object dbDefaultValue;
     public final Class<?> clazz;
 
-    //如果defaultValue为null的话表示该列不需要设置默认值
     public FieldType(Class<?> clazz, String dbMetaType, Object dbDefaultValue) {
         this.clazz = clazz;
         this.dbMetaType = dbMetaType;
@@ -31,6 +30,7 @@ public abstract class FieldType {
         return name.substring(2, name.length() - 2);
     }
 
+    //如果defaultValue为null的话表示该列不需要设置默认值
     public String getDefaultSqlState(){
         if(dbDefaultValue == null){
             return "";
