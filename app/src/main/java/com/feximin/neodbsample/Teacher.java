@@ -1,11 +1,9 @@
 package com.feximin.neodbsample;
 
-import com.feximin.neodb.model.Model;
-
 /**
  * Created by Neo on 16/1/6.
  */
-public class Teacher implements Model {
+public class Teacher {
     private int age;
     private String name;
     private String title;

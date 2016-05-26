@@ -2,9 +2,6 @@ package com.feximin.neodb.core;
 
 import android.content.Context;
 
-import com.feximin.neodb.model.Model;
-import com.feximin.neodb.utils.SingletonUtil;
-
 import java.util.HashSet;
 import java.util.Set;
 
@@ -17,15 +14,9 @@ public class DBConfig {
     private String dbName;
     private int dbVersion;
     private UserIdFetcher userIdFetcher;
-    private Set<Class<? extends Model>> validModelList = new HashSet<>();
+    private Set<Class<?>> validModelList = new HashSet<>();
 
-    private DBConfig(){}
-
-    public static DBConfig obtain(){
-        return SingletonUtil.getInstance(DBConfig.class);
-    }
-
-    public DBConfig addModel(Class<? extends Model> clazz){
+    public DBConfig addModel(Class<?> clazz){
         if (validModelList == null) validModelList = new HashSet<>();
         validModelList.add(clazz);
         return this;
@@ -51,7 +42,7 @@ public class DBConfig {
     }
 
 
-    public Set<Class<? extends Model>> getModelList(){
+    public Set<Class<?>> getModelList(){
         return this.validModelList;
     }
 

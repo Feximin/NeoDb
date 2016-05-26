@@ -4,9 +4,9 @@ import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 
+import com.feximin.neodb.exceptions.DbException;
 import com.feximin.neodb.manager.TableManager;
 import com.feximin.neodb.model.FieldInfo;
-import com.feximin.neodb.model.Model;
 import com.feximin.neodb.model.TableInfo;
 
 import java.util.ArrayList;
@@ -14,36 +14,49 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Created by Neo on 16/1/6.
+ *
+ *
+ * 约定:	1.每个存储到数据库的有效字段都是以双下划线（“__”）开头结尾
+ *   	2.private或者default修饰符修饰的成员变量，子类生成的表中不包含这些字段
+ *   	3.每个表都需要有一个主键，如果没有使用Primary注解，将会默认生成一个主键
+ *   	4.存到数据库里每个字段的开始和结尾会加上双下划线
+ *   继承了这个接口的类都需要有一个无参构造
+ * Created by Neo on 16/5/11.
  */
-public class DBHelper extends SQLiteOpenHelper {
+public class NeoDb {
 
+    private final DBConfig mDBConfig;
+    private DBHelper mDBHelper;
     private SQLiteDatabase mDb;
-    //无参的构造器是必需的，singletonUtil要用
+    private AtomicInteger mDbRefCount = new AtomicInteger();
 
-    private DBHelper(DBConfig config){
-        super(config.getContext(), config.getDbName(), null, config.getDbVersion());
-    }
-
-    private static DBHelper INSTANCE;
-
-    public static DBHelper getInstance(){
-        if (INSTANCE == null){
-            synchronized (DBHelper.class){
+    public static void init(DBConfig config){
+        if (config == null){
+            throw new DbException("config can not be null !!");
+        }else{
+            synchronized (NeoDb.class){
                 if (INSTANCE == null){
-                    INSTANCE = new DBHelper(DBConfig.obtain());
-                    init();
+                    INSTANCE = new NeoDb(config);
+                    INSTANCE.mDBHelper = new DBHelper(config);
+                    INSTANCE.initTables();
                 }
             }
         }
-        return INSTANCE;
     }
 
-    private static void init( ){
-        List<TableInfo> existList = TableManager.getInstance().queryAllTable();       //已经存在的表
+    private NeoDb(DBConfig config){
+        this.mDBConfig = config;
+    }
+
+    public DBConfig getConfig(){
+        return mDBConfig;
+    }
+
+    private void initTables( ){
+        List<TableInfo> existList = TableManager.queryAllTable();       //已经存在的表
 
         List<TableInfo> latestList = new ArrayList<>();
-        for(Class<? extends Model> clazz : DBConfig.obtain().getModelList()){
+        for(Class<?> clazz : mDBConfig.getModelList()){
             latestList.add(new TableInfo(clazz));
         }
 
@@ -57,7 +70,7 @@ public class DBHelper extends SQLiteOpenHelper {
                 }
             }
             if(existTable == null){
-                TableManager.getInstance().createTable(table);
+                TableManager.createTable(table);
             }else{
                 for(FieldInfo field : table.fieldList){
                     boolean isFieldExist = false;
@@ -67,11 +80,21 @@ public class DBHelper extends SQLiteOpenHelper {
                             break;
                         }
                     }
-                    if(!isFieldExist) TableManager.getInstance().addField(field, table.name);
+                    if(!isFieldExist) TableManager.addField(field, table.name);
                 }
             }
         }
     }
+
+    private static NeoDb INSTANCE;
+
+    public static NeoDb getInstance(){
+        if (INSTANCE == null){
+            throw new DbException("please init before call getInstance method !!");
+        }
+        return INSTANCE;
+    }
+
 
 
     public void execSQL(String sql){
@@ -100,11 +123,9 @@ public class DBHelper extends SQLiteOpenHelper {
         return affect;
     }
 
-
-    private AtomicInteger mDbRefCount = new AtomicInteger();
     public synchronized SQLiteDatabase getDb(){
         if(mDbRefCount.incrementAndGet() == 1){
-            mDb = getWritableDatabase();
+            mDb = mDBHelper.getWritableDatabase();
         }
         return mDb;
     }
@@ -112,17 +133,25 @@ public class DBHelper extends SQLiteOpenHelper {
     public synchronized void close(){
         if(mDbRefCount.decrementAndGet() <= 0){
             mDbRefCount.set(0);
-            super.close();
+            mDBHelper.close();
         }
     }
 
-    @Override
-    public void onCreate(SQLiteDatabase db) {
+    public static class DBHelper extends SQLiteOpenHelper {
 
-    }
 
-    @Override
-    public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+        public DBHelper(DBConfig config){
+            super(config.getContext(), config.getDbName(), null, config.getDbVersion());
+        }
 
+        @Override
+        public void onCreate(SQLiteDatabase db) {
+
+        }
+
+        @Override
+        public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+
+        }
     }
 }

@@ -1,13 +1,12 @@
 package com.feximin.neodbsample;
 
 import com.feximin.neodb.annotation.MultiUser;
-import com.feximin.neodb.model.Model;
 
 /**
  * Created by Neo on 16/1/6.
  */
 @MultiUser
-public class Student implements Model {
+public class Student {
     private int age;
     private String name;
     private String title;

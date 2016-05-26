@@ -3,6 +3,7 @@ package com.feximin.neodbsample;
 import android.app.Application;
 
 import com.feximin.neodb.core.DBConfig;
+import com.feximin.neodb.core.NeoDb;
 import com.feximin.neodb.core.UserIdFetcher;
 
 /**
@@ -14,7 +15,7 @@ public class MyApplication extends Application {
     public void onCreate() {
         super.onCreate();
         //初始化 所需的Model，去Application中初始化，因为进程可能被kill掉
-        DBConfig.obtain()
+        DBConfig config = new DBConfig()
                 .context(this)
                 .name("test")
                 .version(1)
@@ -26,5 +27,6 @@ public class MyApplication extends Application {
                 })
                 .addModel(Student.class)
                 .addModel(Teacher.class);
+        NeoDb.init(config);
     }
 }

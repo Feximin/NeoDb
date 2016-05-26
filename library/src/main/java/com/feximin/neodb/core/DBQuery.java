@@ -5,6 +5,7 @@ import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 
 import com.feximin.neodb.exceptions.CursorToModelException;
+import com.feximin.neodb.exceptions.DbException;
 import com.feximin.neodb.exceptions.InsertException;
 import com.feximin.neodb.exceptions.NoEmptyConstructorException;
 import com.feximin.neodb.manager.FieldManager;
@@ -12,7 +13,6 @@ import com.feximin.neodb.manager.TableManager;
 import com.feximin.neodb.model.FieldInfo;
 import com.feximin.neodb.model.FieldType;
 import com.feximin.neodb.model.KeyValue;
-import com.feximin.neodb.model.Model;
 import com.feximin.neodb.utils.NeoUtil;
 
 import java.lang.reflect.Constructor;
@@ -28,23 +28,27 @@ import java.util.Map;
  * 2. delete使用的是db的delete方法，需要whereClause
  *
  */
-public class DBQuery<T extends Model> {
+public class DBQuery<T> {
 
     protected Class<T> clazz;
     protected List<String> args;
     protected StringBuilder whereClause;
     protected String tableName;
+    private DBConfig mDBConfig;
 
     public DBQuery(Class<T> clazz){
         this.clazz = clazz;
-        this.tableName = TableManager.getInstance().getTableName(clazz);
+        this.tableName = TableManager.getTableName(clazz);
         this.args = new ArrayList<>();
         this.whereClause = new StringBuilder();
+        this.mDBConfig = NeoDb.getInstance().getConfig();
     }
 
-
+    private boolean mHasSetWhere;
     public DBQuery where(String field){
-        this.whereClause.append(FieldType.decorName(field)).append(" ");
+        if (mHasSetWhere) throw new DbException("where condition can only set for once");
+        this.whereClause.append(" WHERE ").append(FieldType.decorName(field)).append(" ");
+        mHasSetWhere = true;
         return this;
     }
 
@@ -62,6 +66,11 @@ public class DBQuery<T extends Model> {
         this.args.add(condition);
         this.whereClause.append("=? ");
         return this;
+    }
+
+    public DBQuery eq(boolean b){
+        String con = b?"1":"0";
+        return eq(con);
     }
 
     public DBQuery notEq(String condition){
@@ -93,7 +102,7 @@ public class DBQuery<T extends Model> {
         return this;
     }
     public DBQuery limit(int from, int limit){
-        this.whereClause.append("LIMIT ?,? ");
+        this.whereClause.append(" LIMIT ?,? ");
         this.args.add(String.valueOf(from));
         this.args.add(String.valueOf(limit));
         return this;
@@ -112,7 +121,7 @@ public class DBQuery<T extends Model> {
     }
     public DBQuery my(){
         FieldInfo multiUser = FieldManager.getMultiUserIdentifyFieldInfo(clazz, true);
-        this.args.add(DBConfig.obtain().getUserIdFetcher().fetchUserId());
+        this.args.add(mDBConfig.getUserIdFetcher().fetchUserId());
         this.whereClause.append("AND ").append(multiUser.name).append("=? ");
         return this;
     }
@@ -126,7 +135,7 @@ public class DBQuery<T extends Model> {
         StringBuilder state = new StringBuilder("SELECT COUNT(*) FROM ").append(tableName).append(" ");
         String[] arg = getArgs();
         if(arg != null) state.append(whereClause);
-        DBHelper helper = DBHelper.getInstance();
+        NeoDb helper = NeoDb.getInstance();
         Cursor cursor= helper.rawQuery(state.toString(), arg);
         int count = 0;
         if(cursor != null && cursor.moveToFirst()){
@@ -154,20 +163,29 @@ public class DBQuery<T extends Model> {
 
         String[] arg = getArgs();
         if(arg != null){
-            startState.append(" WHERE ").append(whereClause);
+            startState.append(whereClause);
         }
         String sql = startState.toString();
-        DBHelper helper = DBHelper.getInstance();
+        NeoDb helper = NeoDb.getInstance();
         List<T> result = cursorToModelList(helper.rawQuery(sql, arg));
         helper.close();
         return result;
     }
 
+    public T endSelectSingle(String... columns){
+        List<T> list = endSelect(columns);
+        if (list != null && list.size() > 0){
+            return list.get(0);
+        }
+        return null;
+    }
+
+
     public int endUpdate(ContentValues values){
         if(values.size() == 0) return 0;
         values = decorContentValues(values);
         String[] arg = getArgs();
-        DBHelper helper = DBHelper.getInstance();
+        NeoDb helper = NeoDb.getInstance();
         int affect = helper.getDb().update(tableName, values, whereClause.toString(), arg);
         helper.close();
         return affect;
@@ -213,7 +231,7 @@ public class DBQuery<T extends Model> {
     public int endDelete(){
         String[] arg = getArgs();
         String where = whereClause.length() > 0?whereClause.toString():null;
-        int affect = DBHelper.getInstance().execDelete(tableName, where, arg);
+        int affect = NeoDb.getInstance().execDelete(tableName, where, arg);
         return affect;
     }
 
@@ -236,7 +254,7 @@ public class DBQuery<T extends Model> {
 
     private void insertList(List<T> list, boolean my){
         if(NeoUtil.isEmpty(list)) return;
-        DBHelper helper = DBHelper.getInstance();
+        NeoDb helper = NeoDb.getInstance();
         SQLiteDatabase db = helper.getDb();
         db.beginTransaction();
         try {
@@ -259,7 +277,7 @@ public class DBQuery<T extends Model> {
         List<KeyValue> kvList = KeyValue.getKVList(t);
         if(my){
             FieldInfo multiUser = FieldManager.getMultiUserIdentifyFieldInfo(clazz, true);
-            kvList.add(new KeyValue(multiUser.name, DBConfig.obtain().getUserIdFetcher().fetchUserId()));
+            kvList.add(new KeyValue(multiUser.name, mDBConfig.getUserIdFetcher().fetchUserId()));
         }
         StringBuilder state = new StringBuilder("INSERT INTO ").append(tableName).append(" (");
         for(KeyValue kv : kvList){
@@ -274,7 +292,7 @@ public class DBQuery<T extends Model> {
         state.append(")");
 
         try {
-            DBHelper.getInstance().execSQL(state.toString());
+            NeoDb.getInstance().execSQL(state.toString());
         } catch (Exception e) {
             e.printStackTrace();
             throw new InsertException();

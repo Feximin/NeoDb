@@ -2,13 +2,11 @@ package com.feximin.neodb.manager;
 
 import android.database.Cursor;
 
-import com.feximin.neodb.core.DBHelper;
-import com.feximin.neodb.model.TableInfo;
+import com.feximin.neodb.core.NeoDb;
 import com.feximin.neodb.exceptions.CreateTableFailedException;
 import com.feximin.neodb.model.FieldInfo;
 import com.feximin.neodb.model.FieldType;
-import com.feximin.neodb.model.Model;
-import com.feximin.neodb.utils.SingletonUtil;
+import com.feximin.neodb.model.TableInfo;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -17,15 +15,9 @@ import java.util.regex.Pattern;
 
 public class TableManager  {
 	
-	private List<TableInfo> mTableList = new ArrayList<>();
-	private TableManager(){
-	}
+	private static final List<TableInfo> mTableList = new ArrayList<>();
 
-	public static TableManager getInstance(){
-		return SingletonUtil.getInstance(TableManager.class);
-	}
-	
-	public void createTable(TableInfo en){
+	public static void createTable(TableInfo en){
         String name = en.name;
 		StringBuffer state = new StringBuffer("CREATE TABLE IF NOT EXISTS ").append(name).append(" (");
 		for(FieldInfo entry : en.fieldList){
@@ -38,7 +30,7 @@ public class TableManager  {
 		state.deleteCharAt(state.length() - 1);
 		state.append(")");
 		try {
-			DBHelper.getInstance().execSQL(state.toString());
+			NeoDb.getInstance().execSQL(state.toString());
 		}catch (Exception e){
 			e.printStackTrace();
 			throw new CreateTableFailedException(name);
@@ -46,18 +38,18 @@ public class TableManager  {
 		mTableList.add(en);
 	}
 
-	public TableInfo modelToTable( Class<? extends  Model> clazz){
+	public static TableInfo modelToTable( Class<?> clazz){
 		String name = getTableName(clazz);
 		List<FieldInfo> mFieldsMap = FieldManager.getFieldList(clazz);
 		TableInfo entity = new TableInfo(name, mFieldsMap);
 		return entity;
 	}
 
-	private Pattern pattern = Pattern.compile("__\\w+__");
-	private String QUERY_ALL_TABLE = "SELECT name, sql FROM sqlite_master WHERE type='table'";
+	private static final Pattern pattern = Pattern.compile("__\\w+__");
+	private static final String QUERY_ALL_TABLE = "SELECT name, sql FROM sqlite_master WHERE type='table'";
 	//获取所有的表，以及每个表中所有的字段，只需要知道字段名称，无需知道其他信息，type,typeClazz,
-	public List<TableInfo> queryAllTable(){
-        DBHelper helper = DBHelper.getInstance();
+	public static List<TableInfo> queryAllTable(){
+        NeoDb helper = NeoDb.getInstance();
 		Cursor cursor = helper.rawQuery(QUERY_ALL_TABLE);
 		if (cursor != null){
             if (cursor.moveToFirst()){
@@ -94,19 +86,19 @@ public class TableManager  {
 		return mTableList;
 	}
 	
-    public String getTableName(Class<? extends Model > clazz){
+    public static String getTableName(Class<?> clazz){
 		String name = "table_"+clazz.getSimpleName();
 		return name;
 	}
 
 
-    private String ADD_FIELD = "ALTER TABLE %s ADD COLUMN %s %s";
+    private static final String ADD_FIELD = "ALTER TABLE %s ADD COLUMN %s %s";
     //添加一个字段
-    public void addField(FieldInfo entity, String tableName){
+    public static void addField(FieldInfo entity, String tableName){
 		String name = FieldType.decorName(entity.name);
 		FieldType type = entity.fieldType;
         String sql =  String.format(ADD_FIELD, tableName, name, type.dbMetaType + type.getDefaultSqlState());
-        DBHelper.getInstance().execSQL(sql);
+		NeoDb.getInstance().execSQL(sql);
     }
 	
 	

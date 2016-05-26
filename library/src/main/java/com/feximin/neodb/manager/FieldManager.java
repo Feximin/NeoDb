@@ -1,18 +1,17 @@
 package com.feximin.neodb.manager;
 
+import com.feximin.neodb.annotation.Ignore;
+import com.feximin.neodb.annotation.MultiUser;
 import com.feximin.neodb.annotation.Primary;
 import com.feximin.neodb.exceptions.IllegalTypeException;
 import com.feximin.neodb.exceptions.MultiFieldException;
+import com.feximin.neodb.exceptions.MultiMultiUserException;
 import com.feximin.neodb.exceptions.MultiPrimaryKeyException;
 import com.feximin.neodb.exceptions.NotMultiUserModeClassException;
-import com.feximin.neodb.annotation.Ignore;
-import com.feximin.neodb.annotation.MultiUser;
-import com.feximin.neodb.exceptions.MultiMultiUserException;
 import com.feximin.neodb.exceptions.PrimaryKeyTypeException;
 import com.feximin.neodb.model.FieldInfo;
 import com.feximin.neodb.model.FieldType;
 import com.feximin.neodb.model.FieldTypeAdapter;
-import com.feximin.neodb.model.Model;
 import com.feximin.neodb.utils.NeoUtil;
 
 import java.lang.reflect.Field;
@@ -24,11 +23,11 @@ import java.util.Map;
 
 public class FieldManager {
 
-	public static final Map<Class<? extends Model>, List<FieldInfo>> sModelFieldMaps = new HashMap<>();
-	public static final Map<Class<? extends Model>, FieldInfo> sMultiUserIdentifyFieldInfoMaps = new HashMap<>();
+	public static final Map<Class<? >, List<FieldInfo>> sModelFieldMaps = new HashMap<>();
+	public static final Map<Class<? >, FieldInfo> sMultiUserIdentifyFieldInfoMaps = new HashMap<>();
 
 
-    public static FieldInfo getMultiUserIdentifyFieldInfo(Class<? extends Model> clazz, boolean...throwIfNotMultiUserMode){
+    public static FieldInfo getMultiUserIdentifyFieldInfo(Class<? > clazz, boolean...throwIfNotMultiUserMode){
         if (sMultiUserIdentifyFieldInfoMaps.containsKey(clazz)){
             return sMultiUserIdentifyFieldInfoMaps.get(clazz);
         }else {
@@ -58,7 +57,7 @@ public class FieldManager {
 	 * @param clazz
 	 * @return
      */
-	public static synchronized List<FieldInfo> getFieldList(Class<? extends Model> clazz) {
+	public static synchronized List<FieldInfo> getFieldList(Class<? > clazz) {
 		if(sModelFieldMaps.containsKey(clazz)){
 			return sModelFieldMaps.get(clazz);
 		}else{
@@ -70,15 +69,13 @@ public class FieldManager {
 				Field[] fields = cl.getDeclaredFields();
 				if(NeoUtil.isNotEmpty(fields)){
 					for(Field f : fields){
-						int modifier = f.getModifiers();
-						//如果是父类的话只有public或者protected的变量有效
-						boolean isAvailableModifier = cl == clazz || Modifier.isPublic(modifier) || Modifier.isProtected(modifier);
-						if(isAvailableModifier){
+						if(isAvailableModifier(clazz, cl, f)){
 							String name = f.getName();
 							if(!f.isAnnotationPresent(Ignore.class) && !name.startsWith("$")){		//以$开头的是Object中
 								if (f.isAnnotationPresent(Primary.class)){
 									if (hasPrimary) throw  new MultiPrimaryKeyException(name);
-                                    if (f.getType() != int.class || f.getType() != Integer.class){
+									Class<?> typeClazz = f.getType();
+                                    if (typeClazz != int.class && typeClazz != Integer.class){
                                         throw new PrimaryKeyTypeException(name);
                                     }
                                     addFieldInfo(list, new FieldInfo(name, FieldInfo.PRIMARY_FIELD_TYPE));
@@ -99,20 +96,28 @@ public class FieldManager {
 		}
 	}
 
+    //只有
+    public static boolean isAvailableModifier(Class<?> realClazz, Class<?> superClazz, Field field){
+        int modifier = field.getModifiers();
+        //不能是final的也不能是static的，
+        if (realClazz == superClazz){
+            return !Modifier.isStatic(modifier) && !Modifier.isFinal(modifier);
+        }else{          //如果是父类的话还必须是public或者protect的范围
+            return !Modifier.isFinal(modifier) && !Modifier.isFinal(modifier) && (Modifier.isPublic(modifier) || Modifier.isProtected(modifier));
+        }
+    }
+
     /**
      public Field getDeclaredField(String name) // 获得该类自身声明的所有变量，不包括其父类的变量
      public Field getField(String name) // 获得该类自所有的public成员变量，包括其父类变量
      */
-    public static Field getField(Class<? extends Model> clazz, String fieldName){
+    public static Field getField(Class<? > clazz, String fieldName){
         Field field = null;
         Class<?> cl = clazz;
         do{
             try {
                 field = clazz.getDeclaredField(fieldName);
-                int modifier = field.getModifiers();
-                //如果是父类的话只有public或者protected的变量有效
-                boolean isAvailableModifier = cl == clazz || Modifier.isPublic(modifier) || Modifier.isProtected(modifier);
-                if (isAvailableModifier) break;
+                if (isAvailableModifier(clazz, cl, field)) break;
             }catch (NoSuchFieldException e){
                 e.printStackTrace();
             }

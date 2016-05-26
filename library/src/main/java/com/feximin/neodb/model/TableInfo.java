@@ -11,14 +11,14 @@ import java.util.List;
 public class TableInfo {
 	public String name;
 	public List<FieldInfo> fieldList;
-	public Class<? extends Model> clazz;
+	public Class<?> clazz;
 
 	public TableInfo(){}
 
-	public TableInfo(Class<? extends Model> clazz) {
+	public TableInfo(Class<?> clazz) {
 		this.clazz = clazz;
 		this.fieldList = FieldManager.getFieldList(clazz);
-		this.name = TableManager.getInstance().getTableName(clazz);
+		this.name = TableManager.getTableName(clazz);
 	}
 
 	public TableInfo(String name, List<FieldInfo> list){
