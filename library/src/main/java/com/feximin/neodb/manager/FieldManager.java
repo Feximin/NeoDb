@@ -25,6 +25,7 @@ public class FieldManager {
 
 	public static final Map<Class<? >, List<FieldInfo>> sModelFieldMaps = new HashMap<>();
 	public static final Map<Class<? >, FieldInfo> sMultiUserIdentifyFieldInfoMaps = new HashMap<>();
+	public static final Map<Class<? >, String> sPrimaryKeyNameMaps = new HashMap<>();
 
 
     public static FieldInfo getMultiUserIdentifyFieldInfo(Class<? > clazz, boolean...throwIfNotMultiUserMode){
@@ -132,6 +133,20 @@ public class FieldManager {
         }
         list.add(info);
     }
+
+	public static String getPrimaryKeyName(Class<?> clazz){
+		if (!sPrimaryKeyNameMaps.containsKey(clazz)){
+			List<FieldInfo> list = getFieldList(clazz);
+			for (FieldInfo info : list){
+				if (info.fieldType.dbMetaType.equals(FieldInfo.PRIMARY_FIELD_TYPE.dbMetaType) ){
+					String name = info.fieldType.dbMetaType;
+					sPrimaryKeyNameMaps.put(clazz, name);
+					break;
+				}
+			}
+		}
+		return sPrimaryKeyNameMaps.get(clazz);
+	}
 
 	public static final String INTEGER = "INTEGER";
 	public static final String VARCHAR_10 = "VARCHAR(10)";

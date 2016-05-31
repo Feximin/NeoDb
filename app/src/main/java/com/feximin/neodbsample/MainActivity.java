@@ -29,7 +29,6 @@ public class MainActivity extends AppCompatActivity {
             teachers.add(new Teacher(12*i+i, "name_"+i, "title_"+i, "school_"+i, i * 10));
             students.add(new Student(12*i, "name_"+i, "title_"+i, "teacher_"+i));
         }
-
         new DBQuery<>(Student.class).insert(students);
         new DBQuery<>(Teacher.class).insert(teachers);
         new DBQuery<>(Student.class).insertMy(students);

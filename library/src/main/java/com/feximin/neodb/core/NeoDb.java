@@ -1,10 +1,12 @@
 package com.feximin.neodb.core;
 
+import android.content.ContentValues;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 
 import com.feximin.neodb.exceptions.DbException;
+import com.feximin.neodb.exceptions.InsertException;
 import com.feximin.neodb.manager.TableManager;
 import com.feximin.neodb.model.FieldInfo;
 import com.feximin.neodb.model.TableInfo;
@@ -103,6 +105,18 @@ public class NeoDb {
         }finally {
             close();
         }
+    }
+
+    public long insert(String tableName, ContentValues values){
+        try {
+            getDb().insert(tableName, null, values);
+        }catch (Exception e){
+            e.printStackTrace();
+            throw new InsertException();
+        }finally {
+            close();
+        }
+        return -1;
     }
 
     public Cursor rawQuery(String sql, String[] args){

@@ -5,8 +5,6 @@ import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 
 import com.feximin.neodb.exceptions.CursorToModelException;
-import com.feximin.neodb.exceptions.DbException;
-import com.feximin.neodb.exceptions.InsertException;
 import com.feximin.neodb.exceptions.NoEmptyConstructorException;
 import com.feximin.neodb.manager.FieldManager;
 import com.feximin.neodb.manager.TableManager;
@@ -35,8 +33,28 @@ public class DBQuery<T> {
     protected StringBuilder whereClause;
     protected String tableName;
     private DBConfig mDBConfig;
+    private String orderBy;
+    private String limit;
+    private String having;
+    private String groupBy;
 
-    public DBQuery(Class<T> clazz){
+
+
+    public static <T> DBQuery<T> obtain(Class<T> clazz){
+        return new DBQuery<>(clazz);
+    }
+
+    public DBQuery<T> clear(){
+        args.clear();
+        whereClause.delete(0, whereClause.length());
+        limit = null;
+        orderBy = null;
+        having = null;
+        groupBy = null;
+        return this;
+    }
+
+    private DBQuery(Class<T> clazz){
         this.clazz = clazz;
         this.tableName = TableManager.getTableName(clazz);
         this.args = new ArrayList<>();
@@ -44,87 +62,93 @@ public class DBQuery<T> {
         this.mDBConfig = NeoDb.getInstance().getConfig();
     }
 
-    private boolean mHasSetWhere;
-    public DBQuery where(String field){
-        if (mHasSetWhere) throw new DbException("where condition can only set for once");
-        this.whereClause.append(" WHERE ").append(FieldType.decorName(field)).append(" ");
-        mHasSetWhere = true;
+    public DBQuery<T> where(String field){
+        this.whereClause.append(FieldType.decorName(field)).append(" ");
         return this;
     }
 
-    public DBQuery gt(String condition){
+    public DBQuery<T> gt(String condition){
         this.args.add(condition);
         this.whereClause.append(">? ");
         return this;
     }
-    public DBQuery lt(String condition){
+    public DBQuery<T> lt(String condition){
         this.args.add(condition);
         this.whereClause.append("<? ");
         return this;
     }
-    public DBQuery eq(String condition){
+    public DBQuery<T> eq(String condition){
         this.args.add(condition);
         this.whereClause.append("=? ");
         return this;
     }
 
-    public DBQuery eq(boolean b){
+    public DBQuery<T> eq(boolean b){
         String con = b?"1":"0";
         return eq(con);
     }
 
-    public DBQuery notEq(String condition){
+    public DBQuery<T> notEq(String condition){
         this.args.add(condition);
         this.whereClause.append("<>? ");
         return this;
     }
 
-    public DBQuery and(String field){
+    public DBQuery<T> and(String field){
         this.whereClause.append("AND ").append(FieldType.decorName(field)).append(" ");
         return this;
     }
 
-    public DBQuery or(String field){
+    public DBQuery<T> or(String field){
         this.whereClause.append("OR ").append(FieldType.decorName(field)).append(" ");
         return this;
     }
 
-    public DBQuery lBracket(){
+    public DBQuery<T> lBracket(){
         this.whereClause.append("( ");
         return this;
     }
-    public DBQuery rBracket(){
+    public DBQuery<T> rBracket(){
         this.whereClause.append(") ");
         return this;
     }
-    public DBQuery orderBy(String condition){
-        this.whereClause.append("ORDER BY ").append(condition).append(" ");
+    public DBQuery<T> limit(int from, int limit){
+//        this.whereClause.append(" LIMIT ?,? ");
+//        this.args.add(String.valueOf(from));
+//        this.args.add(String.valueOf(limit));
+        this.limit = String.format(" %s,%s ", from, limit);
         return this;
     }
-    public DBQuery limit(int from, int limit){
-        this.whereClause.append(" LIMIT ?,? ");
-        this.args.add(String.valueOf(from));
-        this.args.add(String.valueOf(limit));
-        return this;
-    }
-    public DBQuery limit(int limit){
+    public DBQuery<T> limit(int limit){
         limit(0, limit);
         return this;
     }
-    public DBQuery desc(){
-        this.whereClause.append("DESC ");
+    public DBQuery<T> desc(String field){
+//        this.whereClause.append("ORDER BY ").append(field).append("DESC ");
+        this.orderBy = String.format("%s DESC", FieldType.decorName(field));
         return this;
     }
-    public DBQuery asc(){
-        this.whereClause.append("ASC ");
+    public DBQuery<T> asc(String field){
+//        this.whereClause.append("ORDER BY ").append(field).append("ASC ");
+        this.orderBy = String.format("%s ASC", FieldType.decorName(field));
         return this;
     }
-    public DBQuery my(){
+    public DBQuery<T> my(){
         FieldInfo multiUser = FieldManager.getMultiUserIdentifyFieldInfo(clazz, true);
         this.args.add(mDBConfig.getUserIdFetcher().fetchUserId());
-        this.whereClause.append("AND ").append(multiUser.name).append("=? ");
+
+        this.whereClause.append(args.size() > 0 ?"AND ":"").append(multiUser.name).append("=? ");
         return this;
     }
+
+    public DBQuery<T> having(String have){
+        return this;
+    }
+
+    public DBQuery<T> groupBy(String group){
+        return this;
+    }
+
     public String[] getArgs(){
         if(args.size() == 0) return null;
         String[] arg = args.toArray(new String[args.size()]);
@@ -134,12 +158,16 @@ public class DBQuery<T> {
     public int count(){
         StringBuilder state = new StringBuilder("SELECT COUNT(*) FROM ").append(tableName).append(" ");
         String[] arg = getArgs();
-        if(arg != null) state.append(whereClause);
+        if(arg != null){
+            state.append(" WHERE ").append(whereClause);
+        }
         NeoDb helper = NeoDb.getInstance();
         Cursor cursor= helper.rawQuery(state.toString(), arg);
         int count = 0;
-        if(cursor != null && cursor.moveToFirst()){
-            count = cursor.getInt(0);
+        if(cursor != null){
+            if (cursor.moveToFirst()){
+                count = cursor.getInt(0);
+            }
             cursor.close();
         }
         helper.close();
@@ -148,26 +176,28 @@ public class DBQuery<T> {
 
     public List<T> endSelect(String ...columns){
 
-        StringBuilder startState;
-        startState = new StringBuilder("SELECT ");
-        if(columns == null || columns.length == 0){
-            startState.append("*");
-        }else{
-            for(String co : columns){
-                startState.append(FieldType.decorName(co)).append(",");
-            }
-            startState.deleteCharAt(startState.length() - 1);
-        }
+//        StringBuilder sqlStatement = new StringBuilder("SELECT ");
+//        if(columns == null || columns.length == 0){
+//            columns = null;
+//            sqlStatement.append("*");
+//        }
+//        else{
+//            for(String co : columns){
+//                sqlStatement.append(FieldType.decorName(co)).append(",");
+//            }
+//            sqlStatement.deleteCharAt(sqlStatement.length() - 1);
+//        }
 
-        startState.append(" FROM ").append(tableName);
+//        sqlStatement.append(" FROM ").append(tableName);
 
         String[] arg = getArgs();
-        if(arg != null){
-            startState.append(whereClause);
-        }
-        String sql = startState.toString();
+//        if(arg != null){
+//            whereClause.insert(0, " WHERE ");
+//            sqlStatement.append(whereClause);
+//        }
         NeoDb helper = NeoDb.getInstance();
-        List<T> result = cursorToModelList(helper.rawQuery(sql, arg));
+        Cursor cursor = helper.getDb().query(tableName, columns, whereClause.toString(), arg, groupBy, having, orderBy, limit);
+        List<T> result = cursorToModelList(cursor);
         helper.close();
         return result;
     }
@@ -235,8 +265,8 @@ public class DBQuery<T> {
         return affect;
     }
 
-    public void insert(T t){
-        insertWithKVList(t, false);
+    public long insert(T t){
+        return insertWithKVList(t, false);
     }
 
 
@@ -273,30 +303,44 @@ public class DBQuery<T> {
     }
 
 
-    private void insertWithKVList(T t, boolean my){
+//    private void insertWithKVList(T t, boolean my){
+//        List<KeyValue> kvList = KeyValue.getKVList(t);
+//        if(my){
+//            FieldInfo multiUser = FieldManager.getMultiUserIdentifyFieldInfo(clazz, true);
+//            kvList.add(new KeyValue(multiUser.name, mDBConfig.getUserIdFetcher().fetchUserId()));
+//        }
+//        StringBuilder state = new StringBuilder("INSERT INTO ").append(tableName).append(" (");
+//        for(KeyValue kv : kvList){
+//            state.append(FieldType.decorName(kv.key)).append(",");
+//        }
+//        state.deleteCharAt(state.length() - 1);
+//        state.append(") VALUES ( ");
+//        for(KeyValue kv: kvList){
+//            state.append("'").append(kv.value).append("',");
+//        }
+//        state.deleteCharAt(state.length() - 1);
+//        state.append(")");
+//
+//        try {
+//            NeoDb.getInstance().execSQL(state.toString());
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//            throw new InsertException();
+//        }
+//    }
+
+    private long insertWithKVList(T t, boolean my){
         List<KeyValue> kvList = KeyValue.getKVList(t);
+        ContentValues values = new ContentValues();
         if(my){
             FieldInfo multiUser = FieldManager.getMultiUserIdentifyFieldInfo(clazz, true);
             kvList.add(new KeyValue(multiUser.name, mDBConfig.getUserIdFetcher().fetchUserId()));
         }
-        StringBuilder state = new StringBuilder("INSERT INTO ").append(tableName).append(" (");
-        for(KeyValue kv : kvList){
-            state.append(FieldType.decorName(kv.key)).append(",");
+        for (KeyValue kv : kvList){
+            values.put(kv.key, kv.value);
         }
-        state.deleteCharAt(state.length() - 1);
-        state.append(") VALUES ( ");
-        for(KeyValue kv: kvList){
-            state.append("'").append(kv.value).append("',");
-        }
-        state.deleteCharAt(state.length() - 1);
-        state.append(")");
 
-        try {
-            NeoDb.getInstance().execSQL(state.toString());
-        } catch (Exception e) {
-            e.printStackTrace();
-            throw new InsertException();
-        }
+        return NeoDb.getInstance().insert(tableName, values);
     }
 
 
