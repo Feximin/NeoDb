@@ -108,15 +108,16 @@ public class NeoDb {
     }
 
     public long insert(String tableName, ContentValues values){
+        long id = -1;
         try {
-            getDb().insert(tableName, null, values);
+            id = getDb().insert(tableName, null, values);
         }catch (Exception e){
             e.printStackTrace();
             throw new InsertException();
         }finally {
             close();
         }
-        return -1;
+        return id;
     }
 
     public Cursor rawQuery(String sql, String[] args){

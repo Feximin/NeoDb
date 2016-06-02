@@ -2,6 +2,9 @@ package com.feximin.neodb.core;
 
 import android.content.Context;
 
+import com.feximin.neodb.exceptions.NoEmptyConstructorException;
+
+import java.lang.reflect.Constructor;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -18,6 +21,11 @@ public class DBConfig {
 
     public DBConfig addModel(Class<?> clazz){
         if (validModelList == null) validModelList = new HashSet<>();
+        try {
+            Constructor constructor = clazz.getConstructor();
+        } catch (NoSuchMethodException e) {
+            throw new NoEmptyConstructorException(clazz.getName());
+        }
         validModelList.add(clazz);
         return this;
     }

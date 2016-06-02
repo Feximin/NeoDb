@@ -83,6 +83,11 @@ public class DBQuery<T> {
         return this;
     }
 
+    public DBQuery<T> eq(Object condition){
+        String cond = condition.toString();
+        return eq(cond);
+    }
+
     public DBQuery<T> eq(boolean b){
         String con = b?"1":"0";
         return eq(con);
@@ -135,9 +140,10 @@ public class DBQuery<T> {
     }
     public DBQuery<T> my(){
         FieldInfo multiUser = FieldManager.getMultiUserIdentifyFieldInfo(clazz, true);
-        this.args.add(mDBConfig.getUserIdFetcher().fetchUserId());
 
-        this.whereClause.append(args.size() > 0 ?"AND ":"").append(multiUser.name).append("=? ");
+        this.whereClause.append(args.size() > 0 ?"AND ":"").append(FieldType.decorName(multiUser.name)).append("=? ");
+
+        this.args.add(mDBConfig.getUserIdFetcher().fetchUserId());
         return this;
     }
 
@@ -337,7 +343,7 @@ public class DBQuery<T> {
             kvList.add(new KeyValue(multiUser.name, mDBConfig.getUserIdFetcher().fetchUserId()));
         }
         for (KeyValue kv : kvList){
-            values.put(kv.key, kv.value);
+            values.put(FieldType.decorName(kv.key), kv.value);
         }
 
         return NeoDb.getInstance().insert(tableName, values);
@@ -350,76 +356,77 @@ public class DBQuery<T> {
     }
 
     public  List<T> cursorToModelList(Cursor cursor){
-        if(cursor != null && cursor.moveToFirst()){
-            List<FieldInfo> fields = FieldManager.getFieldList(clazz);
-            try {
-                Constructor constructor;
-                try{
-                    constructor = clazz.getConstructor();
-                }catch (NoSuchMethodException e){
-                    throw new NoEmptyConstructorException(clazz.getName());
-                }
-                constructor.setAccessible(true);
-                String[] columns = cursor.getColumnNames();
-
-                int length;
-                if(columns != null && (length = columns.length) > 0){
-                    Map<String, ColumnInfo> typeColumnMap = new HashMap<>(length);
-
-                    for(String name : columns){
-                        ColumnInfo info = new ColumnInfo();
-                        info.index = cursor.getColumnIndex(name);
-                        name = FieldType.cleanName(name);
-                        for(FieldInfo field : fields){
-                            if(name.equals(field.name)){
-                                info.fieldInfo = field;
-                                typeColumnMap.put(name, info);
-                                break;
-                            }
-                        }
+        if(cursor != null){
+            if (cursor.moveToFirst()) {
+                List<FieldInfo> fields = FieldManager.getFieldList(clazz);
+                try {
+                    Constructor constructor;
+                    try {
+                        constructor = clazz.getConstructor();
+                    } catch (NoSuchMethodException e) {
+                        throw new NoEmptyConstructorException(clazz.getName());
                     }
-                    List<T> list = new ArrayList<>(length);
-                    do{
-                        Object t = constructor.newInstance();
-                        for(String fieldName : typeColumnMap.keySet()){
-                            Field field = FieldManager.getField(clazz, fieldName);
-                            if (field != null){
-                                field.setAccessible(true);
-                                ColumnInfo info = typeColumnMap.get(fieldName);
-                                FieldType fieldType = info.fieldInfo.fieldType;
-                                Class<?> typeClazz = fieldType.clazz;
-                                int index = info.index;
-                                if(typeClazz == String.class){
-                                    field.set(t, cursor.getString(info.index));
-                                }else if(typeClazz == Integer.class || typeClazz == int.class){
-                                    field.setInt(t, cursor.getInt(index));
-                                }else if(typeClazz == Float.class || typeClazz == float.class){
-                                    field.setFloat(t, cursor.getFloat(index));
-                                }else if(typeClazz == Double.class || typeClazz == double.class){
-                                    field.setDouble(t, cursor.getDouble(index));
-                                }else if(typeClazz == Long.class || typeClazz == long.class){
-                                    field.setLong(t, cursor.getLong(index));
-                                }else if(typeClazz == Short.class || typeClazz == short.class){
-                                    field.setShort(t, cursor.getShort(index));
-                                }else if(typeClazz == Byte.class || typeClazz == byte.class){
-                                    field.setByte(t, (byte) cursor.getInt(index));
-                                }else if(typeClazz == Boolean.class || typeClazz == boolean.class){
-                                    field.setBoolean(t, cursor.getInt(index) == 1);
-                                }else{
-                                    field.set(t, fieldType.fromDb(cursor.getString(info.index)));
+                    constructor.setAccessible(true);
+                    String[] columns = cursor.getColumnNames();
+
+                    int length;
+                    if (columns != null && (length = columns.length) > 0) {
+                        Map<String, ColumnInfo> typeColumnMap = new HashMap<>(length);
+
+                        for (String name : columns) {
+                            ColumnInfo info = new ColumnInfo();
+                            info.index = cursor.getColumnIndex(name);
+                            name = FieldType.cleanName(name);
+                            for (FieldInfo field : fields) {
+                                if (name.equals(field.name)) {
+                                    info.fieldInfo = field;
+                                    typeColumnMap.put(name, info);
+                                    break;
                                 }
                             }
                         }
-                        list.add((T) t);
-                    }while (cursor.moveToNext());
-                    return list;
+                        List<T> list = new ArrayList<>(length);
+                        do {
+                            Object t = constructor.newInstance();
+                            for (String fieldName : typeColumnMap.keySet()) {
+                                Field field = FieldManager.getField(clazz, fieldName);
+                                if (field != null) {
+                                    field.setAccessible(true);
+                                    ColumnInfo info = typeColumnMap.get(fieldName);
+                                    FieldType fieldType = info.fieldInfo.fieldType;
+                                    Class<?> typeClazz = fieldType.clazz;
+                                    int index = info.index;
+                                    if (typeClazz == String.class) {
+                                        field.set(t, cursor.getString(info.index));
+                                    } else if (typeClazz == Integer.class || typeClazz == int.class) {
+                                        field.setInt(t, cursor.getInt(index));
+                                    } else if (typeClazz == Float.class || typeClazz == float.class) {
+                                        field.setFloat(t, cursor.getFloat(index));
+                                    } else if (typeClazz == Double.class || typeClazz == double.class) {
+                                        field.setDouble(t, cursor.getDouble(index));
+                                    } else if (typeClazz == Long.class || typeClazz == long.class) {
+                                        field.setLong(t, cursor.getLong(index));
+                                    } else if (typeClazz == Short.class || typeClazz == short.class) {
+                                        field.setShort(t, cursor.getShort(index));
+                                    } else if (typeClazz == Byte.class || typeClazz == byte.class) {
+                                        field.setByte(t, (byte) cursor.getInt(index));
+                                    } else if (typeClazz == Boolean.class || typeClazz == boolean.class) {
+                                        field.setBoolean(t, cursor.getInt(index) == 1);
+                                    } else {
+                                        field.set(t, fieldType.fromDb(cursor.getString(info.index)));
+                                    }
+                                }
+                            }
+                            list.add((T) t);
+                        } while (cursor.moveToNext());
+                        return list;
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    throw new CursorToModelException();
                 }
-            } catch (Exception e) {
-                e.printStackTrace();
-                throw new CursorToModelException();
-            }finally {
-                cursor.close();
             }
+            cursor.close();
         }
         return null;
     }
