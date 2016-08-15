@@ -3,6 +3,7 @@ package com.feximin.neodb.core;
 import android.content.ContentValues;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
+import android.util.Log;
 
 import com.feximin.neodb.exceptions.CursorToModelException;
 import com.feximin.neodb.exceptions.NoEmptyConstructorException;
@@ -72,8 +73,8 @@ public class DBQuery<T> {
         this.whereClause.append(">? ");
         return this;
     }
-    public DBQuery<T> lt(String condition){
-        this.args.add(condition);
+    public DBQuery<T> lt(Object condition){
+        this.args.add(condition.toString());
         this.whereClause.append("<? ");
         return this;
     }
@@ -181,30 +182,15 @@ public class DBQuery<T> {
     }
 
     public List<T> endSelect(String ...columns){
-
-//        StringBuilder sqlStatement = new StringBuilder("SELECT ");
-//        if(columns == null || columns.length == 0){
-//            columns = null;
-//            sqlStatement.append("*");
-//        }
-//        else{
-//            for(String co : columns){
-//                sqlStatement.append(FieldType.decorName(co)).append(",");
-//            }
-//            sqlStatement.deleteCharAt(sqlStatement.length() - 1);
-//        }
-
-//        sqlStatement.append(" FROM ").append(tableName);
-
         String[] arg = getArgs();
-//        if(arg != null){
-//            whereClause.insert(0, " WHERE ");
-//            sqlStatement.append(whereClause);
-//        }
+        long start = System.currentTimeMillis();
         NeoDb helper = NeoDb.getInstance();
         Cursor cursor = helper.getDb().query(tableName, columns, whereClause.toString(), arg, groupBy, having, orderBy, limit);
         List<T> result = cursorToModelList(cursor);
+        if (cursor != null) cursor.close();
         helper.close();
+        long end = System.currentTimeMillis();
+        Log.e("query -->" + tableName, String.format("%s-->, selectCount-->%s, 耗时-->%s", tableName, result == null?0:result.size(), end - start));
         return result;
     }
 
@@ -225,6 +211,31 @@ public class DBQuery<T> {
         int affect = helper.getDb().update(tableName, values, whereClause.toString(), arg);
         helper.close();
         return affect;
+    }
+
+    public int endUpdate(String key, Object value){
+        ContentValues cv = new ContentValues();
+        if (value == null){
+            cv.put(key, "");
+        }else if (value instanceof String ){
+            cv.put(key, (String) value);
+        }else if (value instanceof Integer){
+            cv.put(key, (Integer)value);
+        }else if (value instanceof Long){
+            cv.put(key, (Long)value);
+        }else if (value instanceof Float ){
+            cv.put(key, (Float) value);
+        }else if (value instanceof Double){
+            cv.put(key, (Double)value);
+        }else if (value instanceof Boolean){
+            boolean b = (boolean) value;
+            cv.put(key, b? 1 : 0);
+        }else if (value instanceof Short){
+            cv.put(key, (Short) value);
+        }else if (value instanceof Byte){
+            cv.put(key, (Byte) value);
+        }
+        return endUpdate(cv);
     }
 
     public int endUpdate(T t){
@@ -271,13 +282,18 @@ public class DBQuery<T> {
         return affect;
     }
 
+    public DBQuery<T> delete(){
+        endDelete();
+        return this;
+    }
+
     public long insert(T t){
         return insertWithKVList(t, false);
     }
 
 
-    public void insertMy(T t){
-        insertWithKVList(t, true);
+    public long insertMy(T t){
+        return insertWithKVList(t, true);
     }
 
     public void insert(List<T> list){
@@ -290,6 +306,7 @@ public class DBQuery<T> {
 
     private void insertList(List<T> list, boolean my){
         if(NeoUtil.isEmpty(list)) return;
+        long start = System.currentTimeMillis();
         NeoDb helper = NeoDb.getInstance();
         SQLiteDatabase db = helper.getDb();
         db.beginTransaction();
@@ -306,6 +323,8 @@ public class DBQuery<T> {
             db.endTransaction();
             helper.close();
         }
+        long end = System.currentTimeMillis();
+        Log.e("insertList", "耗时---》"+(end - start));
     }
 
 
@@ -342,6 +361,7 @@ public class DBQuery<T> {
             FieldInfo multiUser = FieldManager.getMultiUserIdentifyFieldInfo(clazz, true);
             kvList.add(new KeyValue(multiUser.name, mDBConfig.getUserIdFetcher().fetchUserId()));
         }
+
         for (KeyValue kv : kvList){
             values.put(FieldType.decorName(kv.key), kv.value);
         }
@@ -430,4 +450,5 @@ public class DBQuery<T> {
         }
         return null;
     }
+
 }

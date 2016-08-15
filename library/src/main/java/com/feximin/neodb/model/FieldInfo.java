@@ -6,9 +6,9 @@ public class FieldInfo {
 	public String name;
 	public FieldType fieldType;
 
-	public static FieldType MULTI_USER_FIELD_TYPE = new FieldTypeAdapter(String.class, "VARCHAR(10)", "''");
-	public static FieldType PRIMARY_FIELD_TYPE = new FieldTypeAdapter(int.class, "INTEGER PRIMARY KEY AUTOINCREMENT", null);
-	public static FieldInfo PRIMARY_FIELD_INFO = new FieldInfo("p_k_id", PRIMARY_FIELD_TYPE);
+	public static final FieldType MULTI_USER_FIELD_TYPE = new FieldTypeAdapter(String.class, "VARCHAR(10)", "''");
+	public static final FieldType PRIMARY_FIELD_TYPE = new FieldTypeAdapter(int.class, "INTEGER PRIMARY KEY AUTOINCREMENT", null);
+	public static final FieldInfo PRIMARY_FIELD_INFO = new FieldInfo("p_k_id", PRIMARY_FIELD_TYPE);
 
 	public FieldInfo(){}
 

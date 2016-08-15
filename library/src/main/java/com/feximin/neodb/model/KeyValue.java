@@ -19,6 +19,7 @@ public class KeyValue {
         this.value = value;
     }
 
+
     public static <T> List<KeyValue> getKVList(T t){
         Class<T> clazz = (Class<T>) t.getClass();
         List<FieldInfo> fieldInfoList = FieldManager.getFieldList(clazz);
@@ -32,7 +33,8 @@ public class KeyValue {
 
                 Field f = FieldManager.getField(clazz, name);
 
-                if (f != null){
+                //如果是主键的话 , 不需要生成, 自动生成就可
+                if (f != null && info.fieldType != FieldInfo.PRIMARY_FIELD_TYPE){
                     f.setAccessible(true);
                     Object value = f.get(t);
 

@@ -117,7 +117,7 @@ public class FieldManager {
         Class<?> cl = clazz;
         do{
             try {
-                field = clazz.getDeclaredField(fieldName);
+                field = cl.getDeclaredField(fieldName);
                 if (isAvailableModifier(clazz, cl, field)) break;
             }catch (NoSuchFieldException e){
                 e.printStackTrace();
